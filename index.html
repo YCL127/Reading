@@ -1,12 +1,13 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-  <base target="_top">
+  <meta charset="UTF-8">
+  <title>班級閱讀紀錄</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    /* 這裡負責網頁美化 */
     body {
       font-family: 'Helvetica Neue', Helvetica, Arial, '微軟正黑體', sans-serif;
-      background-color: #f0f8ff; /* 柔和的淺藍色背景 */
+      background-color: #f0f8ff;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -18,8 +19,8 @@
     .container {
       background-color: #ffffff;
       padding: 30px 40px;
-      border-radius: 15px; /* 圓角設計 */
-      box-shadow: 0 8px 16px rgba(0,0,0,0.1); /* 增加立體陰影 */
+      border-radius: 15px;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
       width: 100%;
       max-width: 450px;
     }
@@ -30,27 +31,31 @@
       font-size: 24px;
     }
     .form-group {
-      margin-bottom: 20px;
+      margin-bottom: 15px;
     }
     label {
       display: block;
-      margin-bottom: 8px;
+      margin-bottom: 5px;
       font-weight: bold;
       color: #444;
-      font-size: 16px;
+      font-size: 15px;
     }
-    select, input[type="number"] {
+    select, input[type="text"], input[type="number"] {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       border: 2px solid #e0e0e0;
       border-radius: 8px;
       font-size: 16px;
       box-sizing: border-box;
-      transition: border-color 0.3s;
     }
-    select:focus, input[type="number"]:focus {
+    select:focus, input:focus {
       outline: none;
-      border-color: #357abd; /* 點擊時外框變藍色 */
+      border-color: #357abd;
+    }
+    input[readonly] {
+      background-color: #f5f5f5;
+      color: #666;
+      cursor: not-allowed;
     }
     button {
       background-color: #4a90e2;
@@ -62,52 +67,55 @@
       font-weight: bold;
       cursor: pointer;
       width: 100%;
-      margin-top: 10px;
-      transition: background-color 0.3s, transform 0.1s;
+      margin-top: 15px;
+      transition: background-color 0.3s;
     }
-    button:hover {
-      background-color: #357abd;
-    }
-    button:active {
-      transform: scale(0.98); /* 按下時會有回饋感 */
-    }
-    button:disabled {
-      background-color: #ccc;
-      cursor: not-allowed;
-    }
+    button:hover { background-color: #357abd; }
+    button:disabled { background-color: #ccc; cursor: not-allowed; }
     #message {
-      margin-top: 20px;
+      margin-top: 15px;
       text-align: center;
       color: #28a745;
       font-weight: bold;
-      font-size: 16px;
     }
   </style>
 </head>
 <body>
 
   <div class="container">
-    <h2>📚 班級閱讀紀錄小幫手</h2>
+    <h2>📚 班級閱讀紀錄</h2>
     
     <form id="recordForm" onsubmit="handleFormSubmit(this); return false;">
       
       <div class="form-group">
-        <label for="student">1. 你是哪一位同學呢？</label>
-        <select id="student" name="student" required>
-          <option value="">載入資料中，請稍候...</option>
+        <label for="classNum">1. 你的班級？</label>
+        <select id="classNum" name="classNum" required onchange="updateNumbers()">
+          <option value="">載入中...</option>
         </select>
       </div>
 
       <div class="form-group">
-        <label for="book">2. 今天讀了哪一本書？</label>
+        <label for="studentNum">2. 你的座號？</label>
+        <select id="studentNum" name="studentNum" required onchange="updateName()">
+          <option value="">請先選擇班級</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <label for="studentName">3. 你的姓名？</label>
+        <input type="text" id="studentName" name="studentName" readonly required placeholder="選擇座號後自動顯示">
+      </div>
+
+      <div class="form-group">
+        <label for="book">4. 今天讀了哪一本書？</label>
         <select id="book" name="book" required>
-          <option value="">載入資料中，請稍候...</option>
+          <option value="">載入中...</option>
         </select>
       </div>
 
       <div class="form-group">
-        <label for="pages">3. 這次看了幾頁？</label>
-        <input type="number" id="pages" name="pages" min="1" placeholder="請輸入數字，例如：10" required>
+        <label for="pages">5. 這次看了幾頁？</label>
+        <input type="number" id="pages" name="pages" min="1" placeholder="請輸入數字" required>
       </div>
 
       <button type="submit" id="submitBtn">送出紀錄</button>
@@ -117,35 +125,76 @@
   </div>
 
   <script>
-    // 網頁一打開，就去跟 GAS 要下拉選單的資料
+    // 這裡已經換成你專屬的 Google Apps Script 網址
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbznitsooVaLOWnajPU3hqyGLcZj1GpBAi5TmyvEUmiS2XQmp8yYaXfAETkA8k_MFFog/exec'; 
+    
+    var allStudents = [];
+
     document.addEventListener('DOMContentLoaded', function() {
-      google.script.run.withSuccessHandler(populateDropdowns).getDropdownData();
+      // 向 GAS 發送請求，抓取下拉選單資料
+      fetch(GAS_URL + '?action=getDropdown')
+        .then(response => response.json())
+        .then(data => populateData(data))
+        .catch(error => console.error('Error:', error));
     });
 
-    // 將要到的資料填入選單
-    function populateDropdowns(data) {
-      var studentSelect = document.getElementById('student');
+    function populateData(data) {
+      allStudents = data.students;
+      var classSelect = document.getElementById('classNum');
       var bookSelect = document.getElementById('book');
       
-      studentSelect.innerHTML = '<option value="">請選擇座號姓名...</option>';
-      bookSelect.innerHTML = '<option value="">請選擇書籍...</option>';
-      
-      data.students.forEach(function(student) {
-        var option = document.createElement('option');
-        option.value = student;
-        option.text = student;
-        studentSelect.appendChild(option);
+      var classes = [];
+      allStudents.forEach(function(s) {
+        if (classes.indexOf(s[0]) === -1) classes.push(s[0]);
       });
       
-      data.books.forEach(function(book) {
+      classSelect.innerHTML = '<option value="">請選擇班級...</option>';
+      classes.forEach(function(c) {
         var option = document.createElement('option');
-        option.value = book;
-        option.text = book;
+        option.value = c; option.text = c;
+        classSelect.appendChild(option);
+      });
+      
+      bookSelect.innerHTML = '<option value="">請選擇書籍...</option>';
+      data.books.forEach(function(b) {
+        var option = document.createElement('option');
+        option.value = b; option.text = b;
         bookSelect.appendChild(option);
       });
     }
 
-    // 按下送出按鈕後的動作
+    function updateNumbers() {
+      var selectedClass = document.getElementById('classNum').value;
+      var numSelect = document.getElementById('studentNum');
+      var nameInput = document.getElementById('studentName');
+      
+      numSelect.innerHTML = '<option value="">請選擇座號...</option>';
+      nameInput.value = '';
+      
+      if (!selectedClass) return;
+
+      var filteredStudents = allStudents.filter(function(s) { return s[0] == selectedClass; });
+      filteredStudents.sort(function(a, b) { return a[1] - b[1]; });
+
+      filteredStudents.forEach(function(s) {
+        var option = document.createElement('option');
+        option.value = s[1]; option.text = s[1];
+        numSelect.appendChild(option);
+      });
+    }
+
+    function updateName() {
+      var selectedClass = document.getElementById('classNum').value;
+      var selectedNum = document.getElementById('studentNum').value;
+      var nameInput = document.getElementById('studentName');
+      
+      var student = allStudents.find(function(s) { 
+        return s[0] == selectedClass && s[1] == selectedNum; 
+      });
+      
+      nameInput.value = student ? student[2] : '';
+    }
+
     function handleFormSubmit(formObject) {
       var btn = document.getElementById('submitBtn');
       var msgBox = document.getElementById('message');
@@ -154,17 +203,37 @@
       btn.innerText = '資料傳送中...';
       msgBox.innerText = '';
       
-      var student = document.getElementById('student').value;
+      var classNum = document.getElementById('classNum').value;
+      var studentNum = document.getElementById('studentNum').value;
+      var studentName = document.getElementById('studentName').value;
       var book = document.getElementById('book').value;
       var pages = document.getElementById('pages').value;
 
-      // 把資料傳給後端 GAS 寫入試算表
-      google.script.run.withSuccessHandler(function(msg) {
-        msgBox.innerText = msg;
-        btn.disabled = false;
-        btn.innerText = '送出紀錄';
-        formObject.reset(); // 清空空格讓下一個同學填
-      }).submitRecord(student, book, pages);
+      // 把資料組合成網址參數傳送給 GAS
+      var url = GAS_URL + '?action=submitRecord' + 
+                '&classNum=' + encodeURIComponent(classNum) + 
+                '&studentNum=' + encodeURIComponent(studentNum) + 
+                '&studentName=' + encodeURIComponent(studentName) + 
+                '&book=' + encodeURIComponent(book) + 
+                '&pages=' + encodeURIComponent(pages);
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          msgBox.innerText = data.message;
+          btn.disabled = false;
+          btn.innerText = '送出紀錄';
+          document.getElementById('studentNum').innerHTML = '<option value="">請先選擇班級</option>';
+          document.getElementById('studentName').value = '';
+          document.getElementById('pages').value = '';
+          document.getElementById('book').selectedIndex = 0;
+        })
+        .catch(error => {
+          msgBox.innerText = '連線失敗，請檢查網路或稍後再試';
+          btn.disabled = false;
+          btn.innerText = '重新送出';
+          console.error('Error:', error);
+        });
     }
   </script>
 </body>
