@@ -5,79 +5,20 @@
   <title>班級閱讀紀錄</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body {
-      font-family: 'Helvetica Neue', Helvetica, Arial, '微軟正黑體', sans-serif;
-      background-color: #f0f8ff;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      margin: 0;
-      padding: 20px;
-      box-sizing: border-box;
-    }
-    .container {
-      background-color: #ffffff;
-      padding: 30px 40px;
-      border-radius: 15px;
-      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
-      width: 100%;
-      max-width: 450px;
-    }
-    h2 {
-      color: #357abd;
-      text-align: center;
-      margin-bottom: 25px;
-      font-size: 24px;
-    }
-    .form-group {
-      margin-bottom: 15px;
-    }
-    label {
-      display: block;
-      margin-bottom: 5px;
-      font-weight: bold;
-      color: #444;
-      font-size: 15px;
-    }
-    select, input[type="text"], input[type="number"] {
-      width: 100%;
-      padding: 10px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 16px;
-      box-sizing: border-box;
-    }
-    select:focus, input:focus {
-      outline: none;
-      border-color: #357abd;
-    }
-    input[readonly] {
-      background-color: #f5f5f5;
-      color: #666;
-      cursor: not-allowed;
-    }
-    button {
-      background-color: #4a90e2;
-      color: white;
-      border: none;
-      padding: 14px 20px;
-      border-radius: 8px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      width: 100%;
-      margin-top: 15px;
-      transition: background-color 0.3s;
-    }
+    body { font-family: 'Helvetica Neue', Helvetica, Arial, '微軟正黑體', sans-serif; background-color: #f0f8ff; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; box-sizing: border-box; }
+    .container { background-color: #ffffff; padding: 30px 40px; border-radius: 15px; box-shadow: 0 8px 16px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+    h2 { color: #357abd; text-align: center; margin-bottom: 25px; font-size: 24px; }
+    .form-group { margin-bottom: 15px; }
+    label { display: block; margin-bottom: 5px; font-weight: bold; color: #444; font-size: 15px; }
+    select, input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
+    select:focus, input:focus { outline: none; border-color: #357abd; }
+    input[readonly] { background-color: #f5f5f5; color: #666; cursor: not-allowed; }
+    button { background-color: #4a90e2; color: white; border: none; padding: 14px 20px; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; transition: background-color 0.3s; }
     button:hover { background-color: #357abd; }
     button:disabled { background-color: #ccc; cursor: not-allowed; }
-    #message {
-      margin-top: 15px;
-      text-align: center;
-      color: #28a745;
-      font-weight: bold;
-    }
+    #message { margin-top: 15px; text-align: center; color: #28a745; font-weight: bold; }
+    /* 👉 新增：提示字體的樣式 */
+    #lastPageInfo { color: #e67e22; font-size: 14px; margin-top: 6px; font-weight: bold; min-height: 20px; }
   </style>
 </head>
 <body>
@@ -89,14 +30,14 @@
       
       <div class="form-group">
         <label for="classNum">1. 你的班級？</label>
-        <select id="classNum" name="classNum" required onchange="updateNumbers()">
+        <select id="classNum" name="classNum" required onchange="updateNumbers(); checkLastPage();">
           <option value="">載入中...</option>
         </select>
       </div>
 
       <div class="form-group">
         <label for="studentNum">2. 你的座號？</label>
-        <select id="studentNum" name="studentNum" required onchange="updateName()">
+        <select id="studentNum" name="studentNum" required onchange="updateName(); checkLastPage();">
           <option value="">請先選擇班級</option>
         </select>
       </div>
@@ -108,13 +49,14 @@
 
       <div class="form-group">
         <label for="book">4. 今天讀了哪一本書？</label>
-        <select id="book" name="book" required>
+        <select id="book" name="book" required onchange="checkLastPage()">
           <option value="">載入中...</option>
         </select>
+        <div id="lastPageInfo"></div>
       </div>
 
       <div class="form-group">
-        <label for="pages">5. 這次看了幾頁？</label>
+        <label for="pages">5. 這次看到了第幾頁？</label>
         <input type="number" id="pages" name="pages" min="1" placeholder="請輸入數字" required>
       </div>
 
@@ -125,13 +67,12 @@
   </div>
 
   <script>
-    // 這裡已經換成你專屬的 Google Apps Script 網址
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbznitsooVaLOWnajPU3hqyGLcZj1GpBAi5TmyvEUmiS2XQmp8yYaXfAETkA8k_MFFog/exec'; 
+    // ★★★ 記得把這行換成你目前正在使用的 GAS 網址 ★★★
+    const GAS_URL = '你的_exec_網址貼在這裡'; 
     
     var allStudents = [];
 
     document.addEventListener('DOMContentLoaded', function() {
-      // 向 GAS 發送請求，抓取下拉選單資料
       fetch(GAS_URL + '?action=getDropdown')
         .then(response => response.json())
         .then(data => populateData(data))
@@ -195,6 +136,41 @@
       nameInput.value = student ? student[2] : '';
     }
 
+    // 👉 新增：檢查上次閱讀進度的功能
+    function checkLastPage() {
+      var classNum = document.getElementById('classNum').value;
+      var studentNum = document.getElementById('studentNum').value;
+      var book = document.getElementById('book').value;
+      var infoDiv = document.getElementById('lastPageInfo');
+      
+      // 必須班級、座號、書名都選了才去查
+      if (!classNum || !studentNum || !book) {
+        infoDiv.innerText = '';
+        return;
+      }
+
+      infoDiv.innerText = '🔍 尋找上次進度中...';
+
+      var url = GAS_URL + '?action=getLastPage' + 
+                '&classNum=' + encodeURIComponent(classNum) + 
+                '&studentNum=' + encodeURIComponent(studentNum) + 
+                '&book=' + encodeURIComponent(book);
+
+      fetch(url)
+        .then(response => response.json())
+        .then(data => {
+          if (data.lastPage === "尚無紀錄") {
+            infoDiv.innerText = '💡 這是你第一次讀這本書喔！';
+          } else {
+            infoDiv.innerText = '📌 上次讀到第 ' + data.lastPage + ' 頁';
+          }
+        })
+        .catch(error => {
+          infoDiv.innerText = '';
+          console.error('Error:', error);
+        });
+    }
+
     function handleFormSubmit(formObject) {
       var btn = document.getElementById('submitBtn');
       var msgBox = document.getElementById('message');
@@ -209,7 +185,6 @@
       var book = document.getElementById('book').value;
       var pages = document.getElementById('pages').value;
 
-      // 把資料組合成網址參數傳送給 GAS
       var url = GAS_URL + '?action=submitRecord' + 
                 '&classNum=' + encodeURIComponent(classNum) + 
                 '&studentNum=' + encodeURIComponent(studentNum) + 
@@ -223,10 +198,13 @@
           msgBox.innerText = data.message;
           btn.disabled = false;
           btn.innerText = '送出紀錄';
+          
+          // 送出後清空資料，方便下一位同學
           document.getElementById('studentNum').innerHTML = '<option value="">請先選擇班級</option>';
           document.getElementById('studentName').value = '';
           document.getElementById('pages').value = '';
           document.getElementById('book').selectedIndex = 0;
+          document.getElementById('lastPageInfo').innerText = ''; // 清空提示
         })
         .catch(error => {
           msgBox.innerText = '連線失敗，請檢查網路或稍後再試';
@@ -238,7 +216,3 @@
   </script>
 </body>
 </html>
-
-
-
-
