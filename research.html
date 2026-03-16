@@ -2,57 +2,44 @@
 <html lang="zh-TW">
 <head>
   <meta charset="UTF-8">
-  <title>教師後台查詢系統</title>
+  <title>閱讀紀錄查詢</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: 'Helvetica Neue', Helvetica, Arial, '微軟正黑體', sans-serif; background-color: #f8f9fa; padding: 20px; margin: 0; }
-    .container { background-color: #ffffff; padding: 30px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 800px; margin: auto; }
+    body { font-family: sans-serif; background-color: #f8f9fa; padding: 20px; margin: 0; }
+    .container { background-color: #ffffff; padding: 30px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
     h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
     select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; outline: none; transition: border-color 0.3s; }
     select:focus { border-color: #3b82f6; }
-    .table-responsive { overflow-x: auto; }
-    table { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 500px; }
-    th, td { border: 1px solid #e2e8f0; padding: 12px; text-align: center; }
-    th { background-color: #3b82f6; color: white; white-space: nowrap; }
-    tr:nth-child(even) { background-color: #f1f5f9; }
-    tr:hover { background-color: #e2e8f0; }
+    .grid-scroll { overflow-x: auto; }
+    .grid-container { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; min-width: 700px; padding-bottom: 10px; }
+    .student-card { background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px 5px; text-align: center; }
+    .seat-num { font-size: 14px; color: #64748b; margin-bottom: 8px; }
+    .page-num { font-size: 20px; font-weight: bold; color: #0f172a; }
+    .no-record { color: #ef4444; font-size: 16px; font-weight: normal; }
     #loading { text-align: center; color: #f59e0b; font-weight: bold; display: none; margin-bottom: 15px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>📊 各班閱讀紀錄查詢</h2>
+    <h2>班級閱讀紀錄查詢</h2>
     
     <select id="classNum" onchange="fetchClassData()">
-      <option value="">請稍候，正在讀取班級資料...</option>
+      <option value="">請稍候，正在讀取班級資料</option>
     </select>
     
-    <div id="loading">資料讀取中請稍候...</div>
+    <div id="loading">資料讀取中請稍候</div>
     
-    <div class="table-responsive">
-      <table>
-        <thead>
-          <tr>
-            <th>登記時間</th>
-            <th>座號</th>
-            <th>姓名</th>
-            <th>書名</th>
-            <th>閱讀頁數</th>
-          </tr>
-        </thead>
-        <tbody id="recordTableBody">
-          <tr><td colspan="5">請先從上方選擇班級</td></tr>
-        </tbody>
-      </table>
+    <div class="grid-scroll">
+      <div class="grid-container" id="studentGrid">
+      </div>
     </div>
   </div>
 
   <script>
-    // 記得把這行換成您專屬的網址
-    const api_url = 'https://script.google.com/macros/s/AKfycbznitsooVaLOWnajPU3hqyGLcZj1GpBAi5TmyvEUmiS2XQmp8yYaXfAETkA8k_MFFog/exec'; 
+    const link = '請將網址貼在這裡'; 
 
     document.addEventListener('DOMContentLoaded', function() {
-      fetch(api_url + '?action=getDropdown')
+      fetch(link + '?action=getDropdown')
         .then(response => response.json())
         .then(data => {
           let classSelect = document.getElementById('classNum');
@@ -61,30 +48,30 @@
             if (classes.indexOf(s[0]) === -1) classes.push(s[0]);
           });
           
-          classSelect.innerHTML = '<option value="">請選擇要查詢的班級...</option>';
+          classSelect.innerHTML = '<option value="">請選擇要查詢的班級</option>';
           classes.forEach(function(c) {
             let option = document.createElement('option');
             option.value = c; option.text = c;
             classSelect.appendChild(option);
           });
         })
-        .catch(error => console.error('Error:', error));
+        .catch(error => console.error(error));
     });
 
     function fetchClassData() {
       let classNum = document.getElementById('classNum').value;
-      let tbody = document.getElementById('recordTableBody');
+      let grid = document.getElementById('studentGrid');
       let loading = document.getElementById('loading');
       
       if (!classNum) {
-        tbody.innerHTML = '<tr><td colspan="5">請先從上方選擇班級</td></tr>';
+        grid.innerHTML = '';
         return;
       }
 
-      tbody.innerHTML = '';
+      grid.innerHTML = '';
       loading.style.display = 'block';
 
-      let url = api_url + '?action=getDashboardData&classNum=' + encodeURIComponent(classNum);
+      let url = link + '?action=getDashboardData&classNum=' + encodeURIComponent(classNum);
 
       fetch(url)
         .then(response => response.json())
@@ -92,24 +79,23 @@
           loading.style.display = 'none';
           
           if (data.records.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="5">目前該班級尚無閱讀紀錄</td></tr>';
+            grid.innerHTML = '<div style="grid-column: span 10; text-align: center;">目前該班級尚無資料</div>';
             return;
           }
 
           data.records.forEach(function(record) {
-            let tr = document.createElement('tr');
-            tr.innerHTML = '<td>' + record.time + '</td>' +
-                           '<td>' + record.num + '</td>' +
-                           '<td>' + record.name + '</td>' +
-                           '<td>' + record.book + '</td>' +
-                           '<td>第 ' + record.page + ' 頁</td>';
-            tbody.appendChild(tr);
+            let card = document.createElement('div');
+            card.className = 'student-card';
+            let pageContent = record.page === '無' ? '<span class="no-record">無</span>' : record.page;
+            card.innerHTML = '<div class="seat-num">' + record.num + '號</div>' +
+                             '<div class="page-num">' + pageContent + '</div>';
+            grid.appendChild(card);
           });
         })
         .catch(error => {
           loading.style.display = 'none';
-          tbody.innerHTML = '<tr><td colspan="5" style="color:red;">讀取失敗，請檢查網路或稍後再試</td></tr>';
-          console.error('Error:', error);
+          grid.innerHTML = '<div style="grid-column: span 10; text-align: center; color: red;">讀取失敗</div>';
+          console.error(error);
         });
     }
   </script>
