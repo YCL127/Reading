@@ -13,12 +13,19 @@
     select, input[type="text"], input[type="number"] { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 16px; box-sizing: border-box; }
     select:focus, input:focus { outline: none; border-color: #357abd; }
     input[readonly] { background-color: #f5f5f5; color: #666; cursor: not-allowed; }
+    
     button { background-color: #4a90e2; color: white; border: none; padding: 14px 20px; border-radius: 8px; font-size: 18px; font-weight: bold; cursor: pointer; width: 100%; margin-top: 15px; transition: background-color 0.3s; }
     button:hover { background-color: #357abd; }
     button:disabled { background-color: #ccc; cursor: not-allowed; }
+    
     #message { margin-top: 15px; text-align: center; color: #28a745; font-weight: bold; }
-    /* 👉 新增：提示字體的樣式 */
     #lastPageInfo { color: #e67e22; font-size: 14px; margin-top: 6px; font-weight: bold; min-height: 20px; }
+    
+    /* 新增：成功畫面的樣式 */
+    #successScreen { display: none; text-align: center; }
+    .summary-box { background-color: #f8f9fa; border: 2px dashed #357abd; border-radius: 8px; padding: 25px 20px; margin-top: 15px; text-align: left; font-size: 18px; line-height: 2; color: #333; }
+    .btn-secondary { background-color: #6c757d; margin-top: 25px; }
+    .btn-secondary:hover { background-color: #5a6268; }
   </style>
 </head>
 <body>
@@ -27,7 +34,6 @@
     <h2>📚 班級閱讀紀錄</h2>
     
     <form id="recordForm" onsubmit="handleFormSubmit(this); return false;">
-      
       <div class="form-group">
         <label for="classNum">1. 你的班級？</label>
         <select id="classNum" name="classNum" required onchange="updateNumbers(); checkLastPage();">
@@ -62,13 +68,20 @@
 
       <button type="submit" id="submitBtn">送出紀錄</button>
       <div id="message"></div>
-      
     </form>
+
+    <div id="successScreen">
+      <h3 style="color: #28a745; font-size: 26px; margin-top: 0;">🎉 紀錄成功！</h3>
+      <div class="summary-box" id="recordSummary">
+        </div>
+      <button class="btn-secondary" onclick="location.reload()">下一位同學登記</button>
+    </div>
+
   </div>
 
   <script>
     // ★★★ 記得把這行換成你目前正在使用的 GAS 網址 ★★★
-    const GAS_URL = 'https://script.google.com/macros/s/AKfycbznitsooVaLOWnajPU3hqyGLcZj1GpBAi5TmyvEUmiS2XQmp8yYaXfAETkA8k_MFFog/exec'; 
+    const GAS_URL = '請將您的_exec_網址貼在這裡'; 
     
     var allStudents = [];
 
@@ -136,14 +149,12 @@
       nameInput.value = student ? student[2] : '';
     }
 
-    // 👉 新增：檢查上次閱讀進度的功能
     function checkLastPage() {
       var classNum = document.getElementById('classNum').value;
       var studentNum = document.getElementById('studentNum').value;
       var book = document.getElementById('book').value;
       var infoDiv = document.getElementById('lastPageInfo');
       
-      // 必須班級、座號、書名都選了才去查
       if (!classNum || !studentNum || !book) {
         infoDiv.innerText = '';
         return;
@@ -195,16 +206,17 @@
       fetch(url)
         .then(response => response.json())
         .then(data => {
-          msgBox.innerText = data.message;
-          btn.disabled = false;
-          btn.innerText = '送出紀錄';
+          // 資料送出成功後，隱藏表單，顯示成功文字畫面
+          document.getElementById('recordForm').style.display = 'none';
+          document.getElementById('successScreen').style.display = 'block';
           
-          // 送出後清空資料，方便下一位同學
-          document.getElementById('studentNum').innerHTML = '<option value="">請先選擇班級</option>';
-          document.getElementById('studentName').value = '';
-          document.getElementById('pages').value = '';
-          document.getElementById('book').selectedIndex = 0;
-          document.getElementById('lastPageInfo').innerText = ''; // 清空提示
+          // 將剛才輸入的資料填入文字方塊中
+          document.getElementById('recordSummary').innerHTML = 
+            '🏷️ <b>班級：</b>' + classNum + '<br>' +
+            '👤 <b>座號：</b>' + studentNum + ' 號<br>' +
+            '📛 <b>姓名：</b>' + studentName + '<br>' +
+            '📖 <b>書籍：</b>' + book + '<br>' +
+            '🔖 <b>目前進度：</b>第 ' + pages + ' 頁';
         })
         .catch(error => {
           msgBox.innerText = '連線失敗，請檢查網路或稍後再試';
@@ -216,4 +228,3 @@
   </script>
 </body>
 </html>
-
