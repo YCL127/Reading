@@ -8,34 +8,50 @@
     body { font-family: sans-serif; background-color: #f8f9fa; padding: 20px; margin: 0; }
     .container { background-color: #ffffff; padding: 30px; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
     h2 { color: #2c3e50; text-align: center; margin-bottom: 20px; }
-    select { width: 100%; padding: 12px; margin-bottom: 20px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; outline: none; transition: border-color 0.3s; }
+    
+    /* 將兩個下拉選單並排 */
+    .filter-group { display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; }
+    select { flex: 1; padding: 12px; font-size: 16px; border-radius: 8px; border: 2px solid #cbd5e1; outline: none; transition: border-color 0.3s; min-width: 200px; }
     select:focus { border-color: #3b82f6; }
+    
     .grid-scroll { overflow-x: auto; }
     .grid-container { display: grid; grid-template-columns: repeat(10, 1fr); gap: 10px; min-width: 700px; padding-bottom: 10px; }
+    
     .student-card { background-color: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 8px; padding: 15px 5px; text-align: center; }
     .seat-num { font-size: 14px; color: #64748b; margin-bottom: 8px; }
     .page-num { font-size: 20px; font-weight: bold; color: #0f172a; }
     .no-record { color: #ef4444; font-size: 16px; font-weight: normal; }
+    
+    /* 針對沒有該座號的空位設計 */
+    .empty-card { background-color: #f8f9fa; border: 1px dashed #cbd5e1; border-radius: 8px; padding: 15px 5px; text-align: center; opacity: 0.5; }
+    
     #loading { text-align: center; color: #f59e0b; font-weight: bold; display: none; margin-bottom: 15px; }
   </style>
 </head>
 <body>
   <div class="container">
-    <h2>班級閱讀紀錄查詢</h2>
+    <h2>📊 班級閱讀紀錄查詢</h2>
     
-    <select id="classNum" onchange="fetchClassData()">
-      <option value="">請稍候，正在讀取班級資料</option>
-    </select>
+    <div class="filter-group">
+      <select id="classNum" onchange="fetchClassData()">
+        <option value="">載入中...</option>
+      </select>
+      <select id="book" onchange="fetchClassData()">
+        <option value="">載入中...</option>
+      </select>
+    </div>
     
-    <div id="loading">資料讀取中請稍候</div>
+    <div id="loading">資料讀取中請稍候...</div>
     
     <div class="grid-scroll">
       <div class="grid-container" id="studentGrid">
+        <div style="grid-column: span 10; text-align: center; color: #64748b;">請由上方選擇班級與書籍，即可顯示進度。</div>
       </div>
     </div>
   </div>
 
   <script>
+    // ★★★ 記得把這行換成你專屬的 /exec 網址 ★★★
     const link = 'https://script.google.com/macros/s/AKfycbznitsooVaLOWnajPU3hqyGLcZj1GpBAi5TmyvEUmiS2XQmp8yYaXfAETkA8k_MFFog/exec'; 
 
     document.addEventListener('DOMContentLoaded', function() {
@@ -43,16 +59,25 @@
         .then(response => response.json())
         .then(data => {
           let classSelect = document.getElementById('classNum');
+          let bookSelect = document.getElementById('book');
+          
           let classes = [];
           data.students.forEach(function(s) {
             if (classes.indexOf(s[0]) === -1) classes.push(s[0]);
           });
           
-          classSelect.innerHTML = '<option value="">請選擇要查詢的班級</option>';
+          classSelect.innerHTML = '<option value="">1. 請選擇班級...</option>';
           classes.forEach(function(c) {
             let option = document.createElement('option');
             option.value = c; option.text = c;
             classSelect.appendChild(option);
+          });
+          
+          bookSelect.innerHTML = '<option value="">2. 請選擇書籍...</option>';
+          data.books.forEach(function(b) {
+            let option = document.createElement('option');
+            option.value = b; option.text = b;
+            bookSelect.appendChild(option);
           });
         })
         .catch(error => console.error(error));
@@ -60,18 +85,19 @@
 
     function fetchClassData() {
       let classNum = document.getElementById('classNum').value;
+      let book = document.getElementById('book').value;
       let grid = document.getElementById('studentGrid');
       let loading = document.getElementById('loading');
       
-      if (!classNum) {
-        grid.innerHTML = '';
+      if (!classNum || !book) {
+        grid.innerHTML = '<div style="grid-column: span 10; text-align: center; color: #64748b;">請完整選擇班級與書籍</div>';
         return;
       }
 
       grid.innerHTML = '';
       loading.style.display = 'block';
 
-      let url = link + '?action=getDashboardData&classNum=' + encodeURIComponent(classNum);
+      let url = link + '?action=getDashboardData&classNum=' + encodeURIComponent(classNum) + '&book=' + encodeURIComponent(book);
 
       fetch(url)
         .then(response => response.json())
@@ -83,18 +109,38 @@
             return;
           }
 
-          data.records.forEach(function(record) {
-            let card = document.createElement('div');
-            card.className = 'student-card';
-            let pageContent = record.page === '無' ? '<span class="no-record">無</span>' : record.page;
-            card.innerHTML = '<div class="seat-num">' + record.num + '號</div>' +
-                             '<div class="page-num">' + pageContent + '</div>';
-            grid.appendChild(card);
+          // 找出班級最大座號
+          let maxSeatNum = 0;
+          data.records.forEach(r => {
+            if (r.num > maxSeatNum) maxSeatNum = r.num;
           });
+          
+          // 計算需要幾排 (例如最大 26 號，就需要 30 格)
+          let totalCells = Math.ceil(maxSeatNum / 10) * 10;
+          if (totalCells === 0) totalCells = 10;
+
+          // 按照 1 到 totalCells 的順序產生格子，確保排版完美對齊
+          for (let i = 1; i <= totalCells; i++) {
+            let student = data.records.find(r => r.num === i);
+            let card = document.createElement('div');
+            
+            if (student) {
+              card.className = 'student-card';
+              let pageContent = student.page === '無' ? '<span class="no-record">無</span>' : student.page;
+              card.innerHTML = '<div class="seat-num">' + student.num + '號</div>' +
+                               '<div class="page-num">' + pageContent + '</div>';
+            } else {
+              // 空號處理：保留位置但不顯示資料
+              card.className = 'empty-card';
+              card.innerHTML = '<div class="seat-num">' + i + '號</div>' +
+                               '<div class="page-num">-</div>';
+            }
+            grid.appendChild(card);
+          }
         })
         .catch(error => {
           loading.style.display = 'none';
-          grid.innerHTML = '<div style="grid-column: span 10; text-align: center; color: red;">讀取失敗</div>';
+          grid.innerHTML = '<div style="grid-column: span 10; text-align: center; color: red;">讀取失敗，請檢查網路</div>';
           console.error(error);
         });
     }
