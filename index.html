@@ -21,11 +21,14 @@
     #message { margin-top: 15px; text-align: center; color: #28a745; font-weight: bold; }
     #lastPageInfo { color: #e67e22; font-size: 14px; margin-top: 6px; font-weight: bold; min-height: 20px; }
     
-    /* 新增：成功畫面的樣式 */
     #successScreen { display: none; text-align: center; }
     .summary-box { background-color: #f8f9fa; border: 2px dashed #357abd; border-radius: 8px; padding: 25px 20px; margin-top: 15px; text-align: left; font-size: 18px; line-height: 2; color: #333; }
     .btn-secondary { background-color: #6c757d; margin-top: 25px; }
     .btn-secondary:hover { background-color: #5a6268; }
+
+    /* 👉 新增：前往認證按鈕的專屬樣式 */
+    .btn-certify { display: block; background-color: #f59e0b; color: white; text-decoration: none; padding: 14px 20px; border-radius: 8px; font-size: 18px; font-weight: bold; text-align: center; margin-top: 15px; transition: background-color 0.3s; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+    .btn-certify:hover { background-color: #d97706; }
   </style>
 </head>
 <body>
@@ -59,6 +62,9 @@
           <option value="">載入中...</option>
         </select>
         <div id="lastPageInfo"></div>
+        <div id="certifyDiv1" style="display: none;">
+          <a href="https://read.tc.edu.tw/index_2020.php" target="_blank" class="btn-certify">🏆 已經看完囉！點我前往認證</a>
+        </div>
       </div>
 
       <div class="form-group">
@@ -72,8 +78,13 @@
 
     <div id="successScreen">
       <h3 style="color: #28a745; font-size: 26px; margin-top: 0;">🎉 紀錄成功！</h3>
-      <div class="summary-box" id="recordSummary">
-        </div>
+      <div class="summary-box" id="recordSummary"></div>
+      
+      <div id="certifyDiv2" style="display: none;">
+        <p style="color: #d97706; font-weight: bold; margin-bottom: 5px;">恭喜你讀完這本書了！</p>
+        <a href="https://read.tc.edu.tw/index_2020.php" target="_blank" class="btn-certify">🏆 點擊前往認證系統</a>
+      </div>
+
       <button class="btn-secondary" onclick="location.reload()">下一位同學登記</button>
     </div>
 
@@ -84,6 +95,7 @@
     const GAS_URL = 'https://script.google.com/macros/s/AKfycbznitsooVaLOWnajPU3hqyGLcZj1GpBAi5TmyvEUmiS2XQmp8yYaXfAETkA8k_MFFog/exec'; 
     
     var allStudents = [];
+    var bookDetails = {}; // 用來存每本書的總頁數
 
     document.addEventListener('DOMContentLoaded', function() {
       fetch(GAS_URL + '?action=getDropdown')
@@ -94,6 +106,8 @@
 
     function populateData(data) {
       allStudents = data.students;
+      bookDetails = data.bookDetails || {}; // 存下總頁數資料
+      
       var classSelect = document.getElementById('classNum');
       var bookSelect = document.getElementById('book');
       
@@ -153,7 +167,10 @@
       var classNum = document.getElementById('classNum').value;
       var studentNum = document.getElementById('studentNum').value;
       var book = document.getElementById('book').value;
+      
       var infoDiv = document.getElementById('lastPageInfo');
+      var certifyDiv1 = document.getElementById('certifyDiv1');
+      certifyDiv1.style.display = 'none'; // 預設隱藏認證按鈕
       
       if (!classNum || !studentNum || !book) {
         infoDiv.innerText = '';
@@ -174,6 +191,13 @@
             infoDiv.innerText = '💡 這是你第一次讀這本書喔！';
           } else {
             infoDiv.innerText = '📌 上次讀到第 ' + data.lastPage + ' 頁';
+            
+            // 檢查前次進度是否已達標
+            var totalPages = bookDetails[book] || 99999;
+            if (parseInt(data.lastPage, 10) >= totalPages) {
+              infoDiv.innerText += ' (🎉 已讀完)';
+              certifyDiv1.style.display = 'block'; // 顯示認證按鈕
+            }
           }
         })
         .catch(error => {
@@ -206,17 +230,22 @@
       fetch(url)
         .then(response => response.json())
         .then(data => {
-          // 資料送出成功後，隱藏表單，顯示成功文字畫面
           document.getElementById('recordForm').style.display = 'none';
           document.getElementById('successScreen').style.display = 'block';
           
-          // 將剛才輸入的資料填入文字方塊中
           document.getElementById('recordSummary').innerHTML = 
             '🏷️ <b>班級：</b>' + classNum + '<br>' +
             '👤 <b>座號：</b>' + studentNum + ' 號<br>' +
             '📛 <b>姓名：</b>' + studentName + '<br>' +
             '📖 <b>書籍：</b>' + book + '<br>' +
             '🔖 <b>目前進度：</b>第 ' + pages + ' 頁';
+            
+          // 👉 檢查剛送出的頁數是否達標，若達標顯示認證按鈕
+          var totalPages = bookDetails[book] || 99999;
+          var certifyDiv2 = document.getElementById('certifyDiv2');
+          if (parseInt(pages, 10) >= totalPages) {
+            certifyDiv2.style.display = 'block';
+          }
         })
         .catch(error => {
           msgBox.innerText = '連線失敗，請檢查網路或稍後再試';
